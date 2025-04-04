@@ -24,10 +24,47 @@ ChartJS.register(
   Legend
 );
 
+// Common resolution strategies
+const RESOLUTION_STRATEGIES = [
+  {
+    pattern: /price|cost|expensive/i,
+    suggestions: [
+      "Review pricing strategy and consider promotional offers",
+      "Highlight value proposition more clearly in marketing materials",
+      "Consider introducing a tiered pricing model"
+    ]
+  },
+  {
+    pattern: /delivery|shipping|arrived late/i,
+    suggestions: [
+      "Audit delivery partners and service level agreements",
+      "Implement order tracking notifications",
+      "Consider offering expedited shipping options"
+    ]
+  },
+  {
+    pattern: /app|ui|ux|interface/i,
+    suggestions: [
+      "Conduct usability testing sessions",
+      "Review mobile app performance metrics",
+      "Gather more detailed UX feedback through surveys"
+    ]
+  },
+  {
+    pattern: /customer service|support/i,
+    suggestions: [
+      "Implement customer service training program",
+      "Add live chat support option",
+      "Create a knowledge base for common issues"
+    ]
+  }
+];
+
 const FeedbackDashboard: React.FC = () => {
   const [feedbackData, setFeedbackData] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -157,6 +194,53 @@ const FeedbackDashboard: React.FC = () => {
     };
   };
 
+  // Generate suggestions based on feedback analysis
+  useEffect(() => {
+    if (feedbackData.length > 0) {
+      const recentFeedback = feedbackData
+        .slice(-100) // Last 100 feedback items
+        .filter(f => f.sentiment === 'negative' || f.sentiment === 'neutral');
+      
+      const commonIssues: Record<string, number> = {};
+      
+      // Count occurrences of common issues
+      recentFeedback.forEach(feedback => {
+        RESOLUTION_STRATEGIES.forEach(strategy => {
+          if (strategy.pattern.test(feedback.feedbackText)) {
+            const key = strategy.pattern.toString();
+            commonIssues[key] = (commonIssues[key] || 0) + 1;
+          }
+        });
+      });
+      
+      // Sort by most frequent issues
+      const sortedIssues = Object.entries(commonIssues)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3); // Top 3 issues
+      
+      // Generate suggestions
+      const generatedSuggestions: string[] = [];
+      
+      sortedIssues.forEach(([pattern]) => {
+        const strategy = RESOLUTION_STRATEGIES.find(s => s.pattern.toString() === pattern);
+        if (strategy) {
+          generatedSuggestions.push(...strategy.suggestions.slice(0, 1)); // Take top suggestion for each issue
+        }
+      });
+      
+      // Fallback suggestions if no patterns matched
+      if (generatedSuggestions.length === 0) {
+        generatedSuggestions.push(
+          "Consider sending a customer satisfaction survey to gather more detailed feedback",
+          "Review recent product changes that might have affected user experience",
+          "Analyze positive feedback to identify strengths to emphasize"
+        );
+      }
+      
+      setSuggestions(generatedSuggestions.slice(0, 3)); // Limit to 3 suggestions
+    }
+  }, [feedbackData]);
+
   const barChartData = processBarChartData();
   const timeSeriesData = processTimeSeriesData();
 
@@ -277,7 +361,7 @@ const FeedbackDashboard: React.FC = () => {
       </div>
 
       {/* Feedback Table Section */}
-      <div className="bg-white rounded-lg shadow-md p-4">
+      <div className="bg-white rounded-lg shadow-md p-4 mb-6">
         <h2 className="text-xl font-bold mb-4">Individual Feedback Items</h2>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -320,8 +404,75 @@ const FeedbackDashboard: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Suggestions Engine Section */}
+      <div className="bg-white rounded-lg shadow-md p-4">
+        <h2 className="text-xl font-bold mb-4">Actionable Suggestions</h2>
+        <div className="space-y-4">
+          {suggestions.length > 0 ? (
+            <ul className="list-disc pl-5 space-y-2">
+              {suggestions.map((suggestion, index) => (
+                <li key={index} className="text-gray-700">
+                  {suggestion}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-500">No suggestions available. Not enough data to analyze.</p>
+          )}
+        </div>
+        
+        <button 
+          onClick={() => {
+            const recentFeedback = feedbackData.slice(-100);
+            const newSuggestions = generateSuggestions(recentFeedback);
+            setSuggestions(newSuggestions);
+          }}
+          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+        >
+          Regenerate Suggestions
+        </button>
+      </div>
     </div>
   );
 };
+
+// Helper function to generate suggestions
+function generateSuggestions(recentFeedback: any[]): string[] {
+  const negativeFeedback = recentFeedback.filter(f => f.sentiment === 'negative' || f.sentiment === 'neutral');
+  const commonIssues: Record<string, number> = {};
+  
+  negativeFeedback.forEach(feedback => {
+    RESOLUTION_STRATEGIES.forEach(strategy => {
+      if (strategy.pattern.test(feedback.feedbackText)) {
+        const key = strategy.pattern.toString();
+        commonIssues[key] = (commonIssues[key] || 0) + 1;
+      }
+    });
+  });
+  
+  const sortedIssues = Object.entries(commonIssues)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+  
+  const generatedSuggestions: string[] = [];
+  
+  sortedIssues.forEach(([pattern]) => {
+    const strategy = RESOLUTION_STRATEGIES.find(s => s.pattern.toString() === pattern);
+    if (strategy) {
+      generatedSuggestions.push(...strategy.suggestions.slice(0, 1));
+    }
+  });
+  
+  if (generatedSuggestions.length === 0) {
+    generatedSuggestions.push(
+      "Consider sending a customer satisfaction survey to gather more detailed feedback",
+      "Review recent product changes that might have affected user experience",
+      "Analyze positive feedback to identify strengths to emphasize"
+    );
+  }
+  
+  return generatedSuggestions.slice(0, 3);
+}
 
 export default FeedbackDashboard;
