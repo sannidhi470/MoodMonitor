@@ -1,12 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Bar } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import { Bar, Line } from 'react-chartjs-2';
+import { 
+  Chart as ChartJS, 
+  CategoryScale, 
+  LinearScale, 
+  BarElement, 
+  LineElement, 
+  PointElement, 
+  Title, 
+  Tooltip, 
+  Legend 
+} from 'chart.js';
 
 // Register ChartJS components
 ChartJS.register(
   CategoryScale,
   LinearScale,
   BarElement,
+  LineElement,
+  PointElement,
   Title,
   Tooltip,
   Legend
@@ -36,8 +48,8 @@ const FeedbackDashboard: React.FC = () => {
     fetchData();
   }, []);
 
-  // Process data for visualization
-  const processChartData = () => {
+  // Process data for bar chart (sentiment by source)
+  const processBarChartData = () => {
     const sources = ['App', 'Web', 'Email'];
     const sentiments = ['positive', 'negative', 'neutral'];
     
@@ -84,7 +96,69 @@ const FeedbackDashboard: React.FC = () => {
     };
   };
 
-  const chartData = processChartData();
+  // Process data for time series chart (sentiment over time)
+  const processTimeSeriesData = () => {
+    // Group feedback by date and sentiment
+    const dateSentimentMap: Record<string, Record<string, number>> = {};
+
+    feedbackData.forEach(feedback => {
+      const date = new Date(feedback.timestamp).toLocaleDateString();
+      
+      if (!dateSentimentMap[date]) {
+        dateSentimentMap[date] = {
+          positive: 0,
+          negative: 0,
+          neutral: 0
+        };
+      }
+
+      if (feedback.sentiment === 'positive') {
+        dateSentimentMap[date].positive++;
+      } else if (feedback.sentiment === 'negative') {
+        dateSentimentMap[date].negative++;
+      } else {
+        dateSentimentMap[date].neutral++;
+      }
+    });
+
+    // Sort dates chronologically
+    const sortedDates = Object.keys(dateSentimentMap).sort((a, b) => 
+      new Date(a).getTime() - new Date(b).getTime()
+    );
+
+    return {
+      labels: sortedDates,
+      datasets: [
+        {
+          label: 'Positive',
+          data: sortedDates.map(date => dateSentimentMap[date].positive),
+          borderColor: '#4CAF50',
+          backgroundColor: 'rgba(76, 175, 80, 0.1)',
+          tension: 0.1,
+          fill: true
+        },
+        {
+          label: 'Negative',
+          data: sortedDates.map(date => dateSentimentMap[date].negative),
+          borderColor: '#F44336',
+          backgroundColor: 'rgba(244, 67, 54, 0.1)',
+          tension: 0.1,
+          fill: true
+        },
+        {
+          label: 'Neutral',
+          data: sortedDates.map(date => dateSentimentMap[date].neutral),
+          borderColor: '#FFC107',
+          backgroundColor: 'rgba(255, 193, 7, 0.1)',
+          tension: 0.1,
+          fill: true
+        }
+      ]
+    };
+  };
+
+  const barChartData = processBarChartData();
+  const timeSeriesData = processTimeSeriesData();
 
   if (loading) return <div className="p-4">Loading sentiment data...</div>;
   if (error) return <div className="p-4 text-red-500">Error: {error}</div>;
@@ -96,7 +170,7 @@ const FeedbackDashboard: React.FC = () => {
         <h2 className="text-xl font-bold mb-4">Sentiment Analysis by Source</h2>
         <div className="h-96">
           <Bar 
-            data={chartData}
+            data={barChartData}
             options={{
               responsive: true,
               maintainAspectRatio: false,
@@ -114,7 +188,7 @@ const FeedbackDashboard: React.FC = () => {
                     label: (context) => {
                       const label = context.dataset.label || '';
                       const value = context.raw as number;
-                      const total = chartData.datasets.reduce((sum, dataset) => 
+                      const total = barChartData.datasets.reduce((sum, dataset) => 
                         sum + (dataset.data[context.dataIndex] as number), 0);
                       const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
                       return `${label}: ${value} (${percentage}%)`;
@@ -140,6 +214,54 @@ const FeedbackDashboard: React.FC = () => {
                   title: {
                     display: true,
                     text: 'Number of Responses',
+                    font: {
+                      weight: 'bold'
+                    }
+                  },
+                  ticks: {
+                    precision: 0
+                  }
+                }
+              }
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Time Series Chart Section */}
+      <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+        <h2 className="text-xl font-bold mb-4">Feedback Volume Over Time</h2>
+        <div className="h-96">
+          <Line
+            data={timeSeriesData}
+            options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'top',
+                  labels: {
+                    boxWidth: 12,
+                    padding: 20,
+                    usePointStyle: true
+                  }
+                }
+              },
+              scales: {
+                x: {
+                  title: {
+                    display: true,
+                    text: 'Date',
+                    font: {
+                      weight: 'bold'
+                    }
+                  }
+                },
+                y: {
+                  beginAtZero: true,
+                  title: {
+                    display: true,
+                    text: 'Number of Feedback Items',
                     font: {
                       weight: 'bold'
                     }
