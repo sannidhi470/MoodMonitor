@@ -68,9 +68,18 @@ const FALLBACK_SUGGESTIONS = [
 
 const FeedbackDashboard: React.FC = () => {
   const [feedbackData, setFeedbackData] = useState<any[]>([]);
+  const [filteredFeedback, setFilteredFeedback] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  
+  // Filter states
+  const [dateRange, setDateRange] = useState<{ start: string; end: string }>({
+    start: '',
+    end: ''
+  });
+  const [selectedSources, setSelectedSources] = useState<string[]>([]);
+  const availableSources = ['App', 'Web', 'Email'];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -82,6 +91,7 @@ const FeedbackDashboard: React.FC = () => {
         const data = await response.json();
         const parsedBody = JSON.parse(data.body);
         setFeedbackData(parsedBody.feedback_data);
+        setFilteredFeedback(parsedBody.feedback_data);
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Unknown error');
       } finally {
@@ -90,6 +100,33 @@ const FeedbackDashboard: React.FC = () => {
     };
     fetchData();
   }, []);
+
+  // Apply filters when they change
+  useEffect(() => {
+    if (feedbackData.length > 0) {
+      let filtered = [...feedbackData];
+      
+      // Apply date range filter
+      if (dateRange.start && dateRange.end) {
+        const startDate = new Date(dateRange.start);
+        const endDate = new Date(dateRange.end);
+        
+        filtered = filtered.filter(feedback => {
+          const feedbackDate = new Date(feedback.timestamp);
+          return feedbackDate >= startDate && feedbackDate <= endDate;
+        });
+      }
+      
+      // Apply source filter
+      if (selectedSources.length > 0) {
+        filtered = filtered.filter(feedback => 
+          selectedSources.includes(feedback.source)
+        );
+      }
+      
+      setFilteredFeedback(filtered);
+    }
+  }, [dateRange, selectedSources, feedbackData]);
 
   // Process data for bar chart (sentiment by source)
   const processBarChartData = () => {
@@ -105,9 +142,11 @@ const FeedbackDashboard: React.FC = () => {
       };
     });
 
-    feedbackData.forEach(feedback => {
-      if (sources.includes(feedback.source) && sentiments.includes(feedback.sentiment)) {
-        sourceSentimentCount[feedback.source][feedback.sentiment]++;
+    filteredFeedback.forEach(feedback => {
+      if (sources.includes(feedback.source)) {
+        if (sentiments.includes(feedback.sentiment)) {
+          sourceSentimentCount[feedback.source][feedback.sentiment]++;
+        }
       }
     });
 
@@ -143,7 +182,7 @@ const FeedbackDashboard: React.FC = () => {
   const processTimeSeriesData = () => {
     const dateSentimentMap: Record<string, Record<string, number>> = {};
 
-    feedbackData.forEach(feedback => {
+    filteredFeedback.forEach(feedback => {
       const date = new Date(feedback.timestamp).toLocaleDateString();
       
       if (!dateSentimentMap[date]) {
@@ -200,8 +239,8 @@ const FeedbackDashboard: React.FC = () => {
 
   // Generate suggestions based on feedback analysis
   useEffect(() => {
-    if (feedbackData.length > 0) {
-      const recentFeedback = feedbackData
+    if (filteredFeedback.length > 0) {
+      const recentFeedback = filteredFeedback
         .slice(-100) // Last 100 feedback items
         .filter(f => f.sentiment === 'negative');
       
@@ -240,10 +279,18 @@ const FeedbackDashboard: React.FC = () => {
       
       setSuggestions(generatedSuggestions.slice(0, 3)); // Limit to 3 suggestions
     }
-  }, [feedbackData]);
+  }, [filteredFeedback]);
 
   const barChartData = processBarChartData();
   const timeSeriesData = processTimeSeriesData();
+
+  const handleSourceChange = (source: string) => {
+    setSelectedSources(prev =>
+      prev.includes(source)
+        ? prev.filter(s => s !== source)
+        : [...prev, source]
+    );
+  };
 
   if (loading) return <div className="p-4">Loading sentiment data...</div>;
   if (error) return <div className="p-4 text-red-500">Error: {error}</div>;
@@ -363,7 +410,51 @@ const FeedbackDashboard: React.FC = () => {
 
       {/* Feedback Table Section */}
       <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-        <h2 className="text-xl font-bold mb-4">Individual Feedback Items</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">Individual Feedback Items</h2>
+          <div className="flex space-x-4">
+            {/* Date Range Filter */}
+            <div className="flex items-center space-x-2">
+              <label htmlFor="start-date" className="text-sm font-medium text-gray-700">
+                From:
+              </label>
+              <input
+                type="date"
+                id="start-date"
+                className="border rounded px-2 py-1 text-sm"
+                value={dateRange.start}
+                onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
+              />
+              <label htmlFor="end-date" className="text-sm font-medium text-gray-700">
+                To:
+              </label>
+              <input
+                type="date"
+                id="end-date"
+                className="border rounded px-2 py-1 text-sm"
+                value={dateRange.end}
+                onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
+              />
+            </div>
+            
+            {/* Source Filter */}
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-gray-700">Sources:</span>
+              {availableSources.map(source => (
+                <label key={source} className="flex items-center space-x-1">
+                  <input
+                    type="checkbox"
+                    checked={selectedSources.includes(source)}
+                    onChange={() => handleSourceChange(source)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">{source}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+        
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -376,31 +467,39 @@ const FeedbackDashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {feedbackData.map((feedback, index) => (
-                <tr key={index}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(feedback.timestamp).toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {feedback.source}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                      feedback.sentiment === 'positive' ? 'bg-green-100 text-green-800' :
-                      feedback.sentiment === 'negative' ? 'bg-red-100 text-red-800' :
-                      'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {feedback.sentiment}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {Math.round(parseFloat(feedback.sentimentScore) * 100)}%
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {feedback.feedbackText}
+              {filteredFeedback.length > 0 ? (
+                filteredFeedback.map((feedback, index) => (
+                  <tr key={index}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(feedback.timestamp).toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {feedback.source}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        feedback.sentiment === 'positive' ? 'bg-green-100 text-green-800' :
+                        feedback.sentiment === 'negative' ? 'bg-red-100 text-red-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {feedback.sentiment}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {Math.round(parseFloat(feedback.sentimentScore) * 100)}%
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {feedback.feedbackText}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
+                    No feedback matches the current filters
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -425,7 +524,7 @@ const FeedbackDashboard: React.FC = () => {
         
         <button 
           onClick={() => {
-            const recentFeedback = feedbackData.slice(-100);
+            const recentFeedback = filteredFeedback.slice(-100);
             const negativeFeedback = recentFeedback.filter(f => f.sentiment === 'negative');
             const commonIssues: Record<string, number> = {};
             
