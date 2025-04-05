@@ -332,7 +332,9 @@ const FeedbackDashboard: React.FC = () => {
     <div className="p-4 ">
       {/* Bar Chart Section */}
       <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-      <h2 className="text-xl font-bold mb-4 text-center">Sentiment Analysis by Source</h2>
+      <div className="card-header card-header-center">
+      <h2 className="card-title">Sentiment Analysis by Source</h2>
+      </div>
         <div className="h-96">
           <Bar 
             data={barChartData}
@@ -395,7 +397,9 @@ const FeedbackDashboard: React.FC = () => {
 
       {/* Time Series Chart Section */}
       <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-        <h2 className="text-xl font-bold mb-4">Feedback Volume Over Time</h2>
+        <div className="card-header card-header-center">
+      <h2 className="card-title">Feedback Volume Over Time</h2>
+      </div>
         <div className="h-96">
           <Line
             data={timeSeriesData}
@@ -442,6 +446,7 @@ const FeedbackDashboard: React.FC = () => {
       </div>
 
       {/* Feedback Table Section */}
+      
       <div className="bg-white rounded-lg shadow-md p-4 mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Individual Feedback Items</h2>
@@ -551,14 +556,14 @@ const FeedbackDashboard: React.FC = () => {
               <button
                 onClick={() => goToPage(currentPage - 1)}
                 disabled={currentPage === 1}
-                className={`px-4 py-2 border rounded-md ${currentPage === 1 ? 'bg-gray-100 cursor-not-allowed' : 'hover:bg-gray-50'}`}
+                className={`btn ${currentPage === 1 ? 'bg-gray-100 cursor-not-allowed' : 'btn-primary'}`}
               >
                 Previous
               </button>
               <button
                 onClick={() => goToPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className={`px-4 py-2 border rounded-md ${currentPage === totalPages ? 'bg-gray-100 cursor-not-allowed' : 'hover:bg-gray-50'}`}
+                className={`btn ${currentPage === totalPages ? 'bg-gray-100 cursor-not-allowed' : 'btn-primary'}`}
               >
                 Next
               </button>
@@ -620,8 +625,7 @@ const FeedbackDashboard: React.FC = () => {
             
             setSuggestions(newSuggestions.slice(0, 3));
           }}
-          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-        >
+          className="btn btn-primary mt-4">
           Regenerate Suggestions
         </button>
       </div>
