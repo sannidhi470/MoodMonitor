@@ -72,6 +72,8 @@ const FeedbackDashboard: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 50;
   
   // Filter states
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({
@@ -125,6 +127,7 @@ const FeedbackDashboard: React.FC = () => {
       }
       
       setFilteredFeedback(filtered);
+      setCurrentPage(1); // Reset to first page when filters change
     }
   }, [dateRange, selectedSources, feedbackData]);
 
@@ -292,14 +295,26 @@ const FeedbackDashboard: React.FC = () => {
     );
   };
 
+  // Calculate pagination variables
+  const totalItems = filteredFeedback.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const paginatedFeedback = filteredFeedback.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
   if (loading) return <div className="p-4">Loading sentiment data...</div>;
   if (error) return <div className="p-4 text-red-500">Error: {error}</div>;
 
   return (
-    <div className="p-4">
+    <div className="p-4 ">
       {/* Bar Chart Section */}
       <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-        <h2 className="text-xl font-bold mb-4">Sentiment Analysis by Source</h2>
+      <h2 className="text-xl font-bold mb-4 text-center">Sentiment Analysis by Source</h2>
         <div className="h-96">
           <Bar 
             data={barChartData}
@@ -467,8 +482,8 @@ const FeedbackDashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredFeedback.length > 0 ? (
-                filteredFeedback.map((feedback, index) => (
+              {paginatedFeedback.length > 0 ? (
+                paginatedFeedback.map((feedback, index) => (
                   <tr key={index}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(feedback.timestamp).toLocaleString()}
@@ -503,6 +518,35 @@ const FeedbackDashboard: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {totalItems > itemsPerPage && (
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-sm text-gray-700">
+              Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
+              <span className="font-medium">
+                {Math.min(currentPage * itemsPerPage, totalItems)}
+              </span>{' '}
+              of <span className="font-medium">{totalItems}</span> results
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`px-4 py-2 border rounded-md ${currentPage === 1 ? 'bg-gray-100 cursor-not-allowed' : 'hover:bg-gray-50'}`}
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className={`px-4 py-2 border rounded-md ${currentPage === totalPages ? 'bg-gray-100 cursor-not-allowed' : 'hover:bg-gray-50'}`}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Suggestions Engine Section */}
