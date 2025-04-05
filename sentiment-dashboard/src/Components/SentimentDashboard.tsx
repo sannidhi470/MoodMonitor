@@ -120,7 +120,12 @@ useEffect(() => {
         return feedbackDate >= startDate && feedbackDate <= endDate;
       });
     }
-    
+        // Apply source filter if any sources are selected
+        if (selectedSources.length > 0) {
+          filtered = filtered.filter(feedback => 
+            selectedSources.includes(feedback.source)
+          );
+        }
     // Rest of your filtering logic...
     setFilteredFeedback(filtered);
     setCurrentPage(1);
