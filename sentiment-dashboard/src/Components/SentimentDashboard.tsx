@@ -103,33 +103,29 @@ const FeedbackDashboard: React.FC = () => {
     fetchData();
   }, []);
 
-  // Apply filters when they change
-  useEffect(() => {
-    if (feedbackData.length > 0) {
-      let filtered = [...feedbackData];
+  /// In the useEffect that applies filters
+useEffect(() => {
+  if (feedbackData.length > 0) {
+    let filtered = [...feedbackData];
+    
+    // Apply date range filter
+    if (dateRange.start && dateRange.end) {
+      const startDate = new Date(dateRange.start);
+      const endDate = new Date(dateRange.end);
+      // Set end date to end of day
+      endDate.setHours(23, 59, 59, 999);
       
-      // Apply date range filter
-      if (dateRange.start && dateRange.end) {
-        const startDate = new Date(dateRange.start);
-        const endDate = new Date(dateRange.end);
-        
-        filtered = filtered.filter(feedback => {
-          const feedbackDate = new Date(feedback.timestamp);
-          return feedbackDate >= startDate && feedbackDate <= endDate;
-        });
-      }
-      
-      // Apply source filter
-      if (selectedSources.length > 0) {
-        filtered = filtered.filter(feedback => 
-          selectedSources.includes(feedback.source)
-        );
-      }
-      
-      setFilteredFeedback(filtered);
-      setCurrentPage(1); // Reset to first page when filters change
+      filtered = filtered.filter(feedback => {
+        const feedbackDate = new Date(feedback.timestamp);
+        return feedbackDate >= startDate && feedbackDate <= endDate;
+      });
     }
-  }, [dateRange, selectedSources, feedbackData]);
+    
+    // Rest of your filtering logic...
+    setFilteredFeedback(filtered);
+    setCurrentPage(1);
+  }
+}, [dateRange, selectedSources, feedbackData]);
 
   // Process data for bar chart (sentiment by source)
   const processBarChartData = () => {
@@ -457,22 +453,22 @@ const FeedbackDashboard: React.FC = () => {
                 From:
               </label>
               <input
-                type="date"
-                id="start-date"
-                className="border rounded px-2 py-1 text-sm"
-                value={dateRange.start}
-                onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
-              />
+  type="date"
+  id="start-date"
+  className="border rounded px-2 py-1 text-sm"
+  value={dateRange.start}
+  onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
+/>
               <label htmlFor="end-date" className="text-sm font-medium text-gray-700">
                 To:
               </label>
               <input
-                type="date"
-                id="end-date"
-                className="border rounded px-2 py-1 text-sm"
-                value={dateRange.end}
-                onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
-              />
+  type="date"
+  id="end-date"
+  className="border rounded px-2 py-1 text-sm"
+  value={dateRange.end}
+  onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
+/>
             </div>
             
             {/* Source Filter */}
