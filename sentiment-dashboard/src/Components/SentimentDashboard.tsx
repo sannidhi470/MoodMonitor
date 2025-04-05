@@ -181,15 +181,17 @@ const FeedbackDashboard: React.FC = () => {
     };
   };
 
-  // Process data for time series chart (sentiment over time)
+ 
+  // Process data for time series chart (sentiment by hour)
   const processTimeSeriesData = () => {
-    const dateSentimentMap: Record<string, Record<string, number>> = {};
+    const hourSentimentMap: Record<string, Record<string, number>> = {};
 
     filteredFeedback.forEach(feedback => {
-      const date = new Date(feedback.timestamp).toLocaleDateString();
+      const date = new Date(feedback.timestamp);
+      const hour = `${date.getHours()}:00`; // Format as "HH:00"
       
-      if (!dateSentimentMap[date]) {
-        dateSentimentMap[date] = {
+      if (!hourSentimentMap[hour]) {
+        hourSentimentMap[hour] = {
           positive: 0,
           negative: 0,
           neutral: 0
@@ -197,24 +199,40 @@ const FeedbackDashboard: React.FC = () => {
       }
 
       if (feedback.sentiment === 'positive') {
-        dateSentimentMap[date].positive++;
+        hourSentimentMap[hour].positive++;
       } else if (feedback.sentiment === 'negative') {
-        dateSentimentMap[date].negative++;
+        hourSentimentMap[hour].negative++;
       } else {
-        dateSentimentMap[date].neutral++;
+        hourSentimentMap[hour].neutral++;
       }
     });
 
-    const sortedDates = Object.keys(dateSentimentMap).sort((a, b) => 
-      new Date(a).getTime() - new Date(b).getTime()
-    );
+    // Create all 24 hours to ensure complete timeline
+    const allHours = Array.from({length: 24}, (_, i) => `${i}:00`);
+    
+    // Fill in missing hours with zero values
+    allHours.forEach(hour => {
+      if (!hourSentimentMap[hour]) {
+        hourSentimentMap[hour] = {
+          positive: 0,
+          negative: 0,
+          neutral: 0
+        };
+      }
+    });
+
+    const sortedHours = Object.keys(hourSentimentMap).sort((a, b) => {
+      const hourA = parseInt(a.split(':')[0]);
+      const hourB = parseInt(b.split(':')[0]);
+      return hourA - hourB;
+    });
 
     return {
-      labels: sortedDates,
+      labels: sortedHours,
       datasets: [
         {
           label: 'Positive',
-          data: sortedDates.map(date => dateSentimentMap[date].positive),
+          data: sortedHours.map(hour => hourSentimentMap[hour].positive),
           borderColor: '#4CAF50',
           backgroundColor: 'rgba(76, 175, 80, 0.1)',
           tension: 0.1,
@@ -222,7 +240,7 @@ const FeedbackDashboard: React.FC = () => {
         },
         {
           label: 'Negative',
-          data: sortedDates.map(date => dateSentimentMap[date].negative),
+          data: sortedHours.map(hour => hourSentimentMap[hour].negative),
           borderColor: '#F44336',
           backgroundColor: 'rgba(244, 67, 54, 0.1)',
           tension: 0.1,
@@ -230,7 +248,7 @@ const FeedbackDashboard: React.FC = () => {
         },
         {
           label: 'Neutral',
-          data: sortedDates.map(date => dateSentimentMap[date].neutral),
+          data: sortedHours.map(hour => hourSentimentMap[hour].neutral),
           borderColor: '#FFC107',
           backgroundColor: 'rgba(255, 193, 7, 0.1)',
           tension: 0.1,
