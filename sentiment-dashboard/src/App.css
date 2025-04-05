@@ -111,6 +111,13 @@ body {
   background-color: #7C3AED;
 }
 
+.btn-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+
 /* Charts */
 .chart-container {
   position: relative;
