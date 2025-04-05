@@ -24,40 +24,46 @@ ChartJS.register(
   Legend
 );
 
-// Common resolution strategies
+// Enhanced resolution strategies with more actionable items
 const RESOLUTION_STRATEGIES = [
   {
     pattern: /price|cost|expensive/i,
     suggestions: [
-      "Review pricing strategy and consider promotional offers",
-      "Highlight value proposition more clearly in marketing materials",
-      "Consider introducing a tiered pricing model"
+      "Implement a limited-time 15% discount for customers mentioning pricing issues",
+      "Create a value comparison chart to highlight competitive advantages by Friday",
+      "Add a pricing FAQ section explaining your value proposition within 3 days"
     ]
   },
   {
     pattern: /delivery|shipping|arrived late/i,
     suggestions: [
-      "Audit delivery partners and service level agreements",
-      "Implement order tracking notifications",
-      "Consider offering expedited shipping options"
+      "Contact shipping partners within 24 hours to resolve current delays",
+      "Send apology emails with tracking updates to affected customers today",
+      "Offer free expedited shipping on next order for delayed packages"
     ]
   },
   {
     pattern: /app|ui|ux|interface/i,
     suggestions: [
-      "Conduct usability testing sessions",
-      "Review mobile app performance metrics",
-      "Gather more detailed UX feedback through surveys"
+      "Schedule usability testing sessions with 5 customers this week",
+      "Create quick-start guide videos for confusing features by EOW",
+      "Implement contextual tooltips for complex interface elements"
     ]
   },
   {
     pattern: /customer service|support/i,
     suggestions: [
-      "Implement customer service training program",
-      "Add live chat support option",
-      "Create a knowledge base for common issues"
+      "Implement mandatory sensitivity training for staff by Friday",
+      "Launch live chat support with 5-minute response SLA this week",
+      "Create standardized response templates for common issues"
     ]
   }
+];
+
+const FALLBACK_SUGGESTIONS = [
+  "Schedule customer interviews this week to identify pain points",
+  "Review analytics for customer journey drop-off points",
+  "Conduct competitive analysis for similar product offerings"
 ];
 
 const FeedbackDashboard: React.FC = () => {
@@ -135,7 +141,6 @@ const FeedbackDashboard: React.FC = () => {
 
   // Process data for time series chart (sentiment over time)
   const processTimeSeriesData = () => {
-    // Group feedback by date and sentiment
     const dateSentimentMap: Record<string, Record<string, number>> = {};
 
     feedbackData.forEach(feedback => {
@@ -158,7 +163,6 @@ const FeedbackDashboard: React.FC = () => {
       }
     });
 
-    // Sort dates chronologically
     const sortedDates = Object.keys(dateSentimentMap).sort((a, b) => 
       new Date(a).getTime() - new Date(b).getTime()
     );
@@ -199,7 +203,7 @@ const FeedbackDashboard: React.FC = () => {
     if (feedbackData.length > 0) {
       const recentFeedback = feedbackData
         .slice(-100) // Last 100 feedback items
-        .filter(f => f.sentiment === 'negative' || f.sentiment === 'neutral');
+        .filter(f => f.sentiment === 'negative');
       
       const commonIssues: Record<string, number> = {};
       
@@ -224,17 +228,14 @@ const FeedbackDashboard: React.FC = () => {
       sortedIssues.forEach(([pattern]) => {
         const strategy = RESOLUTION_STRATEGIES.find(s => s.pattern.toString() === pattern);
         if (strategy) {
-          generatedSuggestions.push(...strategy.suggestions.slice(0, 1)); // Take top suggestion for each issue
+          generatedSuggestions.push(strategy.suggestions[0]); // Take top suggestion for each issue
         }
       });
-      
-      // Fallback suggestions if no patterns matched
-      if (generatedSuggestions.length === 0) {
-        generatedSuggestions.push(
-          "Consider sending a customer satisfaction survey to gather more detailed feedback",
-          "Review recent product changes that might have affected user experience",
-          "Analyze positive feedback to identify strengths to emphasize"
-        );
+
+      // Ensure we always have exactly 3 suggestions
+      while (generatedSuggestions.length < 3) {
+        const fallbackIndex = generatedSuggestions.length % FALLBACK_SUGGESTIONS.length;
+        generatedSuggestions.push(FALLBACK_SUGGESTIONS[fallbackIndex]);
       }
       
       setSuggestions(generatedSuggestions.slice(0, 3)); // Limit to 3 suggestions
@@ -410,13 +411,13 @@ const FeedbackDashboard: React.FC = () => {
         <h2 className="text-xl font-bold mb-4">Actionable Suggestions</h2>
         <div className="space-y-4">
           {suggestions.length > 0 ? (
-            <ul className="list-disc pl-5 space-y-2">
+            <ol className="list-decimal pl-5 space-y-2">
               {suggestions.map((suggestion, index) => (
                 <li key={index} className="text-gray-700">
                   {suggestion}
                 </li>
               ))}
-            </ul>
+            </ol>
           ) : (
             <p className="text-gray-500">No suggestions available. Not enough data to analyze.</p>
           )}
@@ -425,8 +426,38 @@ const FeedbackDashboard: React.FC = () => {
         <button 
           onClick={() => {
             const recentFeedback = feedbackData.slice(-100);
-            const newSuggestions = generateSuggestions(recentFeedback);
-            setSuggestions(newSuggestions);
+            const negativeFeedback = recentFeedback.filter(f => f.sentiment === 'negative');
+            const commonIssues: Record<string, number> = {};
+            
+            negativeFeedback.forEach(feedback => {
+              RESOLUTION_STRATEGIES.forEach(strategy => {
+                if (strategy.pattern.test(feedback.feedbackText)) {
+                  const key = strategy.pattern.toString();
+                  commonIssues[key] = (commonIssues[key] || 0) + 1;
+                }
+              });
+            });
+            
+            const sortedIssues = Object.entries(commonIssues)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 3);
+            
+            const newSuggestions: string[] = [];
+            
+            sortedIssues.forEach(([pattern]) => {
+              const strategy = RESOLUTION_STRATEGIES.find(s => s.pattern.toString() === pattern);
+              if (strategy) {
+                newSuggestions.push(strategy.suggestions[0]);
+              }
+            });
+
+            // Ensure we always have exactly 3 suggestions
+            while (newSuggestions.length < 3) {
+              const fallbackIndex = newSuggestions.length % FALLBACK_SUGGESTIONS.length;
+              newSuggestions.push(FALLBACK_SUGGESTIONS[fallbackIndex]);
+            }
+            
+            setSuggestions(newSuggestions.slice(0, 3));
           }}
           className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
         >
@@ -436,43 +467,5 @@ const FeedbackDashboard: React.FC = () => {
     </div>
   );
 };
-
-// Helper function to generate suggestions
-function generateSuggestions(recentFeedback: any[]): string[] {
-  const negativeFeedback = recentFeedback.filter(f => f.sentiment === 'negative' || f.sentiment === 'neutral');
-  const commonIssues: Record<string, number> = {};
-  
-  negativeFeedback.forEach(feedback => {
-    RESOLUTION_STRATEGIES.forEach(strategy => {
-      if (strategy.pattern.test(feedback.feedbackText)) {
-        const key = strategy.pattern.toString();
-        commonIssues[key] = (commonIssues[key] || 0) + 1;
-      }
-    });
-  });
-  
-  const sortedIssues = Object.entries(commonIssues)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3);
-  
-  const generatedSuggestions: string[] = [];
-  
-  sortedIssues.forEach(([pattern]) => {
-    const strategy = RESOLUTION_STRATEGIES.find(s => s.pattern.toString() === pattern);
-    if (strategy) {
-      generatedSuggestions.push(...strategy.suggestions.slice(0, 1));
-    }
-  });
-  
-  if (generatedSuggestions.length === 0) {
-    generatedSuggestions.push(
-      "Consider sending a customer satisfaction survey to gather more detailed feedback",
-      "Review recent product changes that might have affected user experience",
-      "Analyze positive feedback to identify strengths to emphasize"
-    );
-  }
-  
-  return generatedSuggestions.slice(0, 3);
-}
 
 export default FeedbackDashboard;
